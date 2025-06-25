@@ -62,7 +62,7 @@ else:
     print("Running with a CPU.  If this is not desired, then the modify network3.py to set\nthe GPU flag to True.")
 
 #### Load the MNIST data
-def load_data_shared(filename="D:/python/AI/neural-networks-and-deep-learning/data/mnist.pkl.gz"):
+def load_data_shared(filename="./neural-networks-and-deep-learning/data/mnist.pkl.gz"):
     f = gzip.open(filename, 'rb')
     training_data, validation_data, test_data = pickle.load(f, encoding='latin1')
     f.close()
@@ -164,7 +164,7 @@ class Network(object):
                 cost_ij = train_mb(minibatch_index)
                 if (iteration+1) % num_training_batches == 0:
                     validation_accuracy = np.mean(
-                        [validate_mb_accuracy(j) for j in range(num_validation_batches)])
+                        [validate_mb_accuracy(j) for j in range(int(num_validation_batches))])
                     print(f"Epoch {epoch}: validation accuracy {validation_accuracy}")
                     if validation_accuracy >= best_validation_accuracy:
                         print("This is the best validation accuracy to date.")
@@ -172,7 +172,7 @@ class Network(object):
                         best_iteration = iteration
                         if test_data:
                             test_accuracy = np.mean(
-                                [test_mb_accuracy(j) for j in range(num_test_batches)])
+                                [test_mb_accuracy(j) for j in range(int(num_test_batches))])
                             print(f"The corresponding test accuracy is {test_accuracy}")
         print("Finished training network.")
         print(f"Best validation accuracy of {best_validation_accuracy} obtained at iteration {best_iteration}")
