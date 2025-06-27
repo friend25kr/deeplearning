@@ -38,11 +38,12 @@ import gzip
 # Third-party libraries
 import numpy as np
 import pytensor
+import pytensor.tensor as T # Theano has been renamed to PyTensor
 import pytensor.tensor as T
-from pytensor.tensor import conv
 from pytensor.tensor.special import softmax
-from pytensor.tensor.random.utils import RandomStream as shared_randomstreams
-from pytensor.sparse.sandbox.sp import max_pool as downsample
+from pytensor.tensor.conv import conv2d
+from pytensor.sparse.sandbox import sp as downsample
+from pytensor.tensor.random.utils import RandomStream
 
 # Activation functions for neurons
 def linear(z): return z
@@ -222,13 +223,24 @@ class ConvPoolLayer(object):
 
     def set_inpt(self, inpt, inpt_dropout, mini_batch_size):
         self.inpt = inpt.reshape(self.image_shape)
-        conv_out = conv.conv2d(
-            input=self.inpt, filters=self.w, filter_shape=self.filter_shape,
-            image_shape=self.image_shape)
-        pooled_out = downsample.max_pool_2d(
-            input=conv_out, ds=self.poolsize, ignore_border=True)
+        conv_out = conv2d(
+            input=self.inpt, filters=self.w,
+            input_shape=self.image_shape, filter_shape=self.filter_shape)
+        
+        conv_out_shape = conv_out.shape
+        pooled_h = conv_out_shape[2] // self.poolsize[0]
+        pooled_w = conv_out_shape[3] // self.poolsize[1]
+        reshaped_for_pooling = conv_out.reshape((
+            conv_out_shape[0], conv_out_shape[1],
+            pooled_h, self.poolsize[0],
+            pooled_w, self.poolsize[1]))
+        pooled_out = T.max(reshaped_for_pooling, axis=(3, 5))
+
+#        pooled_out_raw = downsample.max_pool(images=conv_out, imgshp=(24, 24), maxpoolshp=self.poolsize)
+#        pooled_out = T.as_tensor_variable(pooled_out_raw)
         self.output = self.activation_fn(
             pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.output = self.output.flatten(2)
         self.output_dropout = self.output # no dropout in the convolutional layers
 
 class FullyConnectedLayer(object):
@@ -303,7 +315,7 @@ def size(data):
     return data[0].get_value(borrow=True).shape[0]
 
 def dropout_layer(layer, p_dropout):
-    srng = shared_randomstreams(
-        np.random.RandomState(0).randint(999999))
+    rng = np.random.RandomState(0)
+    srng = RandomStream(rng.randint(999999))
     mask = srng.binomial(n=1, p=1-p_dropout, size=layer.shape)
     return layer*T.cast(mask, pytensor.config.floatX)
